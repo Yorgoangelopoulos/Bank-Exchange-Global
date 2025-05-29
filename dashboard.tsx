@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState } from "react"
 import {
   Activity,
   Command,
@@ -37,6 +37,7 @@ import {
   Hash,
   Key,
   User,
+  LogOut,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -94,6 +95,10 @@ interface Bank {
   cardType?: string
   category?: string
   iconName?: string
+}
+
+interface DashboardProps {
+  onLogout: () => void
 }
 
 // localStorage functions
@@ -328,7 +333,7 @@ const availableIcons = [Shield, HardDrive, Wifi, Database, Globe, Cpu, Lock, Zap
 // Available colors for new banks
 const availableColors = ["cyan", "green", "blue", "purple"] as const
 
-export default function Dashboard() {
+export default function Dashboard({ onLogout }: DashboardProps) {
   const [theme, setTheme] = useState<"dark" | "light">("dark")
   const [currentTime, setCurrentTime] = useState(new Date())
   const [uptimeStart] = useState<number>(getUptimeStart())
@@ -362,7 +367,22 @@ export default function Dashboard() {
     cardPassword: "",
   })
 
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  // Additional error suppression for dashboard component
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      if (event.message.includes("ResizeObserver loop completed with undelivered notifications")) {
+        event.preventDefault()
+        event.stopPropagation()
+        return false
+      }
+    }
+
+    window.addEventListener("error", handleError, true)
+
+    return () => {
+      window.removeEventListener("error", handleError, true)
+    }
+  }, [])
 
   // Simulate data loading
   useEffect(() => {
@@ -441,87 +461,6 @@ export default function Dashboard() {
       }
     }
   }, [searchTerm, banks, selectedBank])
-
-  // Particle effect
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
-
-    canvas.width = canvas.offsetWidth
-    canvas.height = canvas.offsetHeight
-
-    const particles: Particle[] = []
-    const particleCount = 100
-
-    class Particle {
-      x: number
-      y: number
-      size: number
-      speedX: number
-      speedY: number
-      color: string
-
-      constructor() {
-        this.x = Math.random() * canvas.width
-        this.y = Math.random() * canvas.height
-        this.size = Math.random() * 3 + 1
-        this.speedX = (Math.random() - 0.5) * 0.5
-        this.speedY = (Math.random() - 0.5) * 0.5
-        this.color = `rgba(${Math.floor(Math.random() * 100) + 100}, ${Math.floor(Math.random() * 100) + 150}, ${Math.floor(Math.random() * 55) + 200}, ${Math.random() * 0.5 + 0.2})`
-      }
-
-      update() {
-        this.x += this.speedX
-        this.y += this.speedY
-
-        if (this.x > canvas.width) this.x = 0
-        if (this.x < 0) this.x = canvas.width
-        if (this.y > canvas.height) this.y = 0
-        if (this.y < 0) this.y = canvas.height
-      }
-
-      draw() {
-        if (!ctx) return
-        ctx.fillStyle = this.color
-        ctx.beginPath()
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2)
-        ctx.fill()
-      }
-    }
-
-    for (let i = 0; i < particleCount; i++) {
-      particles.push(new Particle())
-    }
-
-    function animate() {
-      if (!ctx || !canvas) return
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-
-      for (const particle of particles) {
-        particle.update()
-        particle.draw()
-      }
-
-      requestAnimationFrame(animate)
-    }
-
-    animate()
-
-    const handleResize = () => {
-      if (!canvas) return
-      canvas.width = canvas.offsetWidth
-      canvas.height = canvas.offsetHeight
-    }
-
-    window.addEventListener("resize", handleResize)
-
-    return () => {
-      window.removeEventListener("resize", handleResize)
-    }
-  }, [])
 
   // Format time for Istanbul timezone
   const formatTime = (date: Date) => {
@@ -880,10 +819,15 @@ export default function Dashboard() {
 
   return (
     <div
-      className={`${theme} min-h-screen bg-gradient-to-br from-black to-slate-900 text-slate-100 relative overflow-hidden`}
+      className={`${theme} min-h-screen bg-gradient-to-br from-black via-slate-900 to-slate-800 text-slate-100 relative overflow-hidden`}
     >
-      {/* Background particle effect */}
-      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full opacity-30" />
+      {/* Animated background with CSS */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-blue-500/5 to-purple-500/5 animate-pulse"></div>
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-2000"></div>
+      </div>
 
       {/* Loading overlay */}
       {isLoading && (
@@ -922,6 +866,17 @@ export default function Dashboard() {
                 onChange={handleSearchChange}
               />
             </div>
+
+            {/* Logout Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-slate-400 hover:text-red-400 hover:bg-red-500/10"
+              onClick={onLogout}
+              title="Logout"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
         </header>
 
