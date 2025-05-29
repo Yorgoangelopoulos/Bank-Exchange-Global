@@ -58,6 +58,22 @@ import {
 // Import bank data
 import bankData from "./bank-data.json"
 
+// Define credit card type
+interface CreditCardType {
+  id: string | number
+  cardName: string
+  cardNumber: string
+  expiryDate: string
+  cvv: string
+  cardholderName: string
+  cardType: "Visa" | "Mastercard" | "American Express" | "Discover"
+  color: "cyan" | "green" | "blue" | "purple" | "gold" | "black"
+  balance: number
+  limit: number
+  currency: string
+  status: string
+}
+
 // Define bank type
 interface Bank {
   id: string | number
@@ -80,22 +96,6 @@ interface Bank {
   iconName?: string
 }
 
-// Define credit card type
-interface CreditCardType {
-  id: string | number
-  cardName: string
-  cardNumber: string
-  expiryDate: string
-  cvv: string
-  cardholderName: string
-  cardType: "Visa" | "Mastercard" | "American Express" | "Discover"
-  color: "cyan" | "green" | "blue" | "purple" | "gold" | "black"
-  balance: number
-  limit: number
-  currency: string
-  status: string
-}
-
 // localStorage functions
 const BANKS_STORAGE_KEY = "bankapp-banks"
 const CREDIT_CARDS_STORAGE_KEY = "bankapp-credit-cards"
@@ -105,14 +105,6 @@ const saveBanksToStorage = (banks: Bank[]) => {
     localStorage.setItem(BANKS_STORAGE_KEY, JSON.stringify(banks))
   } catch (error) {
     console.error("Error saving banks to localStorage:", error)
-  }
-}
-
-const saveCreditCardsToStorage = (cards: CreditCardType[]) => {
-  try {
-    localStorage.setItem(CREDIT_CARDS_STORAGE_KEY, JSON.stringify(cards))
-  } catch (error) {
-    console.error("Error saving credit cards to localStorage:", error)
   }
 }
 
@@ -133,6 +125,7 @@ const loadBanksFromStorage = (): Bank[] => {
   return []
 }
 
+// Credit cards localStorage functions
 const loadCreditCardsFromStorage = (): CreditCardType[] => {
   try {
     const stored = localStorage.getItem(CREDIT_CARDS_STORAGE_KEY)
@@ -143,6 +136,14 @@ const loadCreditCardsFromStorage = (): CreditCardType[] => {
     console.error("Error loading credit cards from localStorage:", error)
   }
   return []
+}
+
+const saveCreditCardsToStorage = (cards: CreditCardType[]) => {
+  try {
+    localStorage.setItem(CREDIT_CARDS_STORAGE_KEY, JSON.stringify(cards))
+  } catch (error) {
+    console.error("Error saving credit cards to localStorage:", error)
+  }
 }
 
 // Uptime functions
@@ -285,7 +286,7 @@ const getInitialCreditCards = (): CreditCardType[] => {
       cardholderName: "JOHN DOE",
       cardType: "Visa",
       color: "blue",
-      balance: 2500.75,
+      balance: 0,
       limit: 10000,
       currency: "TRY",
       status: "Active",
@@ -299,7 +300,7 @@ const getInitialCreditCards = (): CreditCardType[] => {
       cardholderName: "JANE SMITH",
       cardType: "Mastercard",
       color: "gold",
-      balance: 1200.5,
+      balance: 0,
       limit: 15000,
       currency: "TRY",
       status: "Active",
@@ -313,7 +314,7 @@ const getInitialCreditCards = (): CreditCardType[] => {
       cardholderName: "ALEX JOHNSON",
       cardType: "American Express",
       color: "black",
-      balance: 850.25,
+      balance: 0,
       limit: 5000,
       currency: "TRY",
       status: "Active",
@@ -336,8 +337,8 @@ export default function Dashboard() {
   const [currentView, setCurrentView] = useState<"dashboard" | "newBank" | "settings" | "editBank" | "creditCards">(
     "dashboard",
   )
-  const [showPassword, setShowPassword] = useState(false)
-  const [showCardPassword, setShowCardPassword] = useState(false)
+  const [showPassword, setShowCardPassword] = useState(false)
+  const [showCardPassword, setShowPassword] = useState(false)
   const [banks, setBanks] = useState<Bank[]>(initialBanks)
   const [creditCards, setCreditCards] = useState<CreditCardType[]>(getInitialCreditCards())
   const [currentBankId, setCurrentBankId] = useState<string | number | null>(null)
@@ -673,8 +674,6 @@ export default function Dashboard() {
   const handleBackToDashboard = () => {
     setCurrentView("dashboard")
     setCurrentBankId(null)
-    setSelectedCreditCard(null)
-    setShowCreditCardDetails(false)
   }
 
   const handleSettingsClick = () => {
@@ -712,18 +711,6 @@ export default function Dashboard() {
     setSelectedBank(null)
     setShowCreditCardDetails(true)
     setShowBankDetails(false)
-  }
-
-  const handleDeleteCreditCard = (cardId: string | number) => {
-    const updatedCards = creditCards.filter((card) => card.id.toString() !== cardId.toString())
-    setCreditCards(updatedCards)
-    saveCreditCardsToStorage(updatedCards)
-
-    // If the deleted card was selected, clear the selection
-    if (selectedCreditCard && selectedCreditCard.id.toString() === cardId.toString()) {
-      setSelectedCreditCard(null)
-      setShowCreditCardDetails(false)
-    }
   }
 
   const handleCopyToClipboard = (text: string, field: string) => {
@@ -851,6 +838,22 @@ export default function Dashboard() {
     if (selectedBank && selectedBank.id.toString() === bankId.toString()) {
       setSelectedBank(null)
       setShowBankDetails(false)
+    }
+  }
+
+  const handleDeleteCreditCard = (cardId: string | number) => {
+    const updatedCards = creditCards.filter((card) => card.id.toString() !== cardId.toString())
+
+    // Save to localStorage
+    saveCreditCardsToStorage(updatedCards)
+
+    // Update state
+    setCreditCards(updatedCards)
+
+    // If the deleted card was selected, clear the selection
+    if (selectedCreditCard && selectedCreditCard.id.toString() === cardId.toString()) {
+      setSelectedCreditCard(null)
+      setShowCreditCardDetails(false)
     }
   }
 
@@ -1011,7 +1014,7 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
               ) : currentView === "creditCards" ? (
-                /* Credit Cards */
+                /* Credit Cards List */
                 <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm overflow-hidden">
                   <CardHeader className="border-b border-slate-700/50 pb-3">
                     <div className="flex items-center justify-between">
@@ -1602,22 +1605,22 @@ export default function Dashboard() {
                       <div className="flex items-center justify-between mb-2">
                         <div className="text-xl font-bold text-slate-100">{selectedCreditCard.cardName}</div>
                         <div
-                          className={`text-sm px-2 py-1 rounded-full bg-${selectedCreditCard.color}-500/20 text-${selectedCreditCard.color}-400 border border-${selectedCreditCard.color}-500/30`}
+                          className={`text-${selectedCreditCard.color === "gold" ? "yellow" : selectedCreditCard.color}-500 text-sm font-semibold`}
                         >
                           {selectedCreditCard.cardType}
                         </div>
                       </div>
                       <div className="text-sm text-slate-400">{selectedCreditCard.status}</div>
-                      <div className="mt-3 flex items-center justify-between">
+                      <div className="mt-3 flex justify-between">
                         <div>
-                          <div className="text-sm text-slate-500">Balance</div>
-                          <div className="text-2xl font-mono text-cyan-400">
+                          <div className="text-xs text-slate-500">Balance</div>
+                          <div className="text-xl font-mono text-cyan-400">
                             {selectedCreditCard.balance.toLocaleString()} {selectedCreditCard.currency}
                           </div>
                         </div>
                         <div>
-                          <div className="text-sm text-slate-500">Limit</div>
-                          <div className="text-lg font-mono text-slate-300">
+                          <div className="text-xs text-slate-500">Limit</div>
+                          <div className="text-xl font-mono text-green-400">
                             {selectedCreditCard.limit.toLocaleString()} {selectedCreditCard.currency}
                           </div>
                         </div>
@@ -1714,13 +1717,18 @@ export default function Dashboard() {
                           <div className="text-sm font-mono text-slate-200">{selectedCreditCard.cvv}</div>
                         </div>
                       </div>
+                    </div>
 
-                      {/* Action Buttons */}
-                      <div className="flex items-center justify-between pt-2">
+                    {/* Action Buttons - Credit Card Details sayfasının sonuna ekle */}
+                    <div className="p-4 border-t border-slate-700/50">
+                      <div className="space-y-3">
                         <Button
                           variant="outline"
-                          size="sm"
-                          className="border-slate-700 bg-slate-800/50 hover:bg-slate-700/50 text-slate-300 hover:text-slate-100"
+                          className="w-full border-slate-700 bg-slate-800/50 hover:bg-slate-700/50 text-slate-300 hover:text-slate-100"
+                          onClick={() => {
+                            console.log("Edit credit card:", selectedCreditCard.id)
+                            alert(`Edit functionality for ${selectedCreditCard.cardName} is coming soon!`)
+                          }}
                         >
                           <Edit2 className="mr-2 h-4 w-4" />
                           Edit Card
@@ -1730,14 +1738,13 @@ export default function Dashboard() {
                           <AlertDialogTrigger asChild>
                             <Button
                               variant="outline"
-                              size="sm"
-                              className="border-red-900/50 bg-red-900/20 hover:bg-red-900/30 text-red-400 hover:text-red-300"
+                              className="w-full border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 hover:border-red-500/50"
                             >
                               <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
+                              Delete Card
                             </Button>
                           </AlertDialogTrigger>
-                          <AlertDialogContent className="bg-slate-900 border-slate-700">
+                          <AlertDialogContent className="bg-slate-900/95 border-slate-700/50 backdrop-blur-sm">
                             <AlertDialogHeader>
                               <AlertDialogTitle className="text-slate-100 flex items-center">
                                 <AlertTriangle className="mr-2 h-5 w-5 text-red-500" />
@@ -1929,70 +1936,13 @@ function CreditCardComponent({
     >
       <div className="flex items-center justify-between mb-2">
         <div className="text-sm text-slate-400">{card.cardName}</div>
-        <div className="flex items-center space-x-2">
-          <div
-            className={`text-xs px-2 py-1 rounded-full bg-${card.color}-500/20 text-${card.color}-400 border border-${card.color}-500/30`}
-          >
-            {card.cardType}
-          </div>
-        </div>
+        <div className="text-xs text-slate-500">{card.cardType}</div>
       </div>
       <div className="text-lg font-bold mb-1 bg-gradient-to-r bg-clip-text text-transparent from-slate-100 to-slate-300">
-        {card.status}
+        {card.balance.toLocaleString()} {card.currency}
       </div>
       <div className="text-xs text-slate-500 mb-3">
-        Balance: {card.balance.toLocaleString()} {card.currency}
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2 ml-auto">
-          {/* Edit Button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
-            onClick={(e) => {
-              e.stopPropagation()
-              // TODO: Implement edit functionality
-            }}
-          >
-            <Edit2 className="h-4 w-4" />
-          </Button>
-
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent className="bg-slate-900 border-slate-700">
-              <AlertDialogHeader>
-                <AlertDialogTitle className="text-slate-100 flex items-center">
-                  <AlertTriangle className="mr-2 h-5 w-5 text-red-500" />
-                  Delete Credit Card
-                </AlertDialogTitle>
-                <AlertDialogDescription className="text-slate-400">
-                  Are you sure you want to delete <span className="font-semibold text-slate-300">{card.cardName}</span>?
-                  This action cannot be undone and all card data will be permanently removed.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel className="bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700">
-                  Cancel
-                </AlertDialogCancel>
-                <AlertDialogAction onClick={() => onDelete(card.id)} className="bg-red-600 hover:bg-red-700 text-white">
-                  Delete Card
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
+        Limit: {card.limit.toLocaleString()} {card.currency}
       </div>
 
       <div className="absolute -bottom-6 -right-6 h-16 w-16 rounded-full bg-gradient-to-r opacity-20 blur-xl from-cyan-500 to-blue-500"></div>
