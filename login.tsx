@@ -20,10 +20,13 @@ export default function Login({ onLogin }: LoginProps) {
 
   const MASTER_PASSWORD = "d$QI*^1%wiqGg2*v6XY5"
 
-  // Additional error suppression for login component
+  // Component-level error suppression
   useEffect(() => {
     const handleError = (event: ErrorEvent) => {
-      if (event.message.includes("ResizeObserver loop completed with undelivered notifications")) {
+      if (
+        event.message.includes("ResizeObserver loop completed") ||
+        event.message.includes("ResizeObserver loop limit exceeded")
+      ) {
         event.preventDefault()
         event.stopPropagation()
         return false

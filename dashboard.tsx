@@ -284,39 +284,39 @@ const getInitialCreditCards = (): CreditCardType[] => {
   return [
     {
       id: "cc-1",
-      cardName: "Premium Card",
-      cardNumber: "4532 1234 5678 9012",
-      expiryDate: "12/28",
-      cvv: "123",
-      cardholderName: "JOHN DOE",
+      cardName: "Card 1",
+      cardNumber: "0000 0000 0000 0000",
+      expiryDate: "12/29",
+      cvv: "000",
+      cardholderName: "CARD HOLDER",
       cardType: "Visa",
       color: "blue",
       balance: 0,
-      limit: 10000,
+      limit: 5000,
       currency: "TRY",
       status: "Active",
     },
     {
       id: "cc-2",
-      cardName: "Business Card",
-      cardNumber: "5555 4444 3333 2222",
-      expiryDate: "08/29",
-      cvv: "456",
-      cardholderName: "JANE SMITH",
+      cardName: "Card 2",
+      cardNumber: "0000 0000 0000 0000",
+      expiryDate: "12/29",
+      cvv: "000",
+      cardholderName: "CARD HOLDER",
       cardType: "Mastercard",
       color: "gold",
       balance: 0,
-      limit: 15000,
+      limit: 5000,
       currency: "TRY",
       status: "Active",
     },
     {
       id: "cc-3",
-      cardName: "Travel Card",
-      cardNumber: "3782 822463 10005",
-      expiryDate: "06/30",
-      cvv: "789",
-      cardholderName: "ALEX JOHNSON",
+      cardName: "Card 3",
+      cardNumber: "0000 0000 0000 0000",
+      expiryDate: "12/29",
+      cvv: "000",
+      cardholderName: "CARD HOLDER",
       cardType: "American Express",
       color: "black",
       balance: 0,
@@ -367,10 +367,13 @@ export default function Dashboard({ onLogout }: DashboardProps) {
     cardPassword: "",
   })
 
-  // Additional error suppression for dashboard component
+  // Component-level error suppression
   useEffect(() => {
     const handleError = (event: ErrorEvent) => {
-      if (event.message.includes("ResizeObserver loop completed with undelivered notifications")) {
+      if (
+        event.message.includes("ResizeObserver loop completed") ||
+        event.message.includes("ResizeObserver loop limit exceeded")
+      ) {
         event.preventDefault()
         event.stopPropagation()
         return false
@@ -978,6 +981,34 @@ export default function Dashboard({ onLogout }: DashboardProps) {
                         Credit Cards
                       </CardTitle>
                       <div className="flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-cyan-700 bg-cyan-800/20 hover:bg-cyan-700/30 text-cyan-400 hover:text-cyan-300"
+                          onClick={() => {
+                            // Add new credit card functionality
+                            const newCard: CreditCardType = {
+                              id: `cc-${Date.now()}`,
+                              cardName: "New Card",
+                              cardNumber: "0000 0000 0000 0000",
+                              expiryDate: "12/29",
+                              cvv: "000",
+                              cardholderName: "CARD HOLDER",
+                              cardType: "Visa",
+                              color: "blue",
+                              balance: 0,
+                              limit: 5000,
+                              currency: "TRY",
+                              status: "Active",
+                            }
+                            const updatedCards = [...creditCards, newCard]
+                            setCreditCards(updatedCards)
+                            saveCreditCardsToStorage(updatedCards)
+                          }}
+                        >
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add New Card
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
