@@ -1348,7 +1348,17 @@ export default function Dashboard({ onLogout }: DashboardProps) {
                     <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-6 border-b border-slate-700/50">
                       <div className="flex items-center justify-between mb-2">
                         <div className="text-xl font-bold text-slate-100">{selectedBank.name}</div>
-                        <selectedBank.icon className={`h-6 w-6 text-${selectedBank.color}-500`} />
+                        <selectedBank.icon
+                          className={
+                            selectedBank.color === "cyan"
+                              ? "h-6 w-6 text-cyan-500"
+                              : selectedBank.color === "green"
+                                ? "h-6 w-6 text-green-500"
+                                : selectedBank.color === "blue"
+                                  ? "h-6 w-6 text-blue-500"
+                                  : "h-6 w-6 text-purple-500"
+                          }
+                        />
                       </div>
                       <div className="text-sm text-slate-400">{selectedBank.detail}</div>
                       {selectedBank.balance !== undefined && (
@@ -1591,7 +1601,11 @@ export default function Dashboard({ onLogout }: DashboardProps) {
                       <div className="flex items-center justify-between mb-2">
                         <div className="text-xl font-bold text-slate-100">{selectedCreditCard.cardName}</div>
                         <div
-                          className={`text-${selectedCreditCard.color === "gold" ? "yellow" : selectedCreditCard.color}-500 text-sm font-semibold`}
+                          className={
+                            selectedCreditCard.color === "gold"
+                              ? "text-yellow-500 text-sm font-semibold"
+                              : `text-${selectedCreditCard.color}-500 text-sm font-semibold`
+                          }
                         >
                           {selectedCreditCard.cardType}
                         </div>
