@@ -22,21 +22,19 @@ export default function Login({ onLogin }: LoginProps) {
 
   // Component-level error suppression
   useEffect(() => {
-    const handleError = (event: ErrorEvent) => {
-      if (
-        event.message.includes("ResizeObserver loop completed") ||
-        event.message.includes("ResizeObserver loop limit exceeded")
-      ) {
+    const errorHandler = (event: ErrorEvent) => {
+      const message = event.message || event.error?.message || ""
+      if (message.toLowerCase().includes("resizeobserver")) {
+        event.stopImmediatePropagation()
         event.preventDefault()
-        event.stopPropagation()
         return false
       }
     }
 
-    window.addEventListener("error", handleError, true)
+    window.addEventListener("error", errorHandler, true)
 
     return () => {
-      window.removeEventListener("error", handleError, true)
+      window.removeEventListener("error", errorHandler, true)
     }
   }, [])
 

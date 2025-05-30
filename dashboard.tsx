@@ -109,7 +109,7 @@ const saveBanksToStorage = (banks: Bank[]) => {
   try {
     localStorage.setItem(BANKS_STORAGE_KEY, JSON.stringify(banks))
   } catch (error) {
-    console.error("Error saving banks to localStorage:", error)
+    // Silently handle localStorage errors
   }
 }
 
@@ -125,7 +125,7 @@ const loadBanksFromStorage = (): Bank[] => {
       }))
     }
   } catch (error) {
-    console.error("Error loading banks from localStorage:", error)
+    // Silently handle localStorage errors
   }
   return []
 }
@@ -138,7 +138,7 @@ const loadCreditCardsFromStorage = (): CreditCardType[] => {
       return JSON.parse(stored)
     }
   } catch (error) {
-    console.error("Error loading credit cards from localStorage:", error)
+    // Silently handle localStorage errors
   }
   return []
 }
@@ -147,7 +147,7 @@ const saveCreditCardsToStorage = (cards: CreditCardType[]) => {
   try {
     localStorage.setItem(CREDIT_CARDS_STORAGE_KEY, JSON.stringify(cards))
   } catch (error) {
-    console.error("Error saving credit cards to localStorage:", error)
+    // Silently handle localStorage errors
   }
 }
 
@@ -166,7 +166,6 @@ const getUptimeStart = (): number => {
       return now
     }
   } catch (error) {
-    console.error("Error accessing uptime from localStorage:", error)
     return Date.now()
   }
 }
@@ -339,9 +338,9 @@ export default function Dashboard({ onLogout }: DashboardProps) {
   const [uptimeStart] = useState<number>(getUptimeStart())
   const [uptime, setUptime] = useState<string>("")
   const [isLoading, setIsLoading] = useState(true)
-  const [currentView, setCurrentView] = useState<"dashboard" | "newBank" | "settings" | "editBank" | "creditCards">(
-    "dashboard",
-  )
+  const [currentView, setCurrentView] = useState<
+    "dashboard" | "newBank" | "settings" | "editBank" | "creditCards" | "editCard"
+  >("dashboard")
   const [showPassword, setShowCardPassword] = useState(false)
   const [showCardPassword, setShowPassword] = useState(false)
   const [banks, setBanks] = useState<Bank[]>(initialBanks)
@@ -352,9 +351,21 @@ export default function Dashboard({ onLogout }: DashboardProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [showBankDetails, setShowBankDetails] = useState(false)
   const [showCreditCardDetails, setShowCreditCardDetails] = useState(false)
-  const [showDetailPassword, setShowDetailPassword] = useState(false)
-  const [showDetailCardPassword, setShowDetailCardPassword] = useState(false)
+  const [showDetailPassword, setShowDetailCardPassword] = useState(false)
+  const [showDetailCardPassword, setShowDetailPassword] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
+  const [currentCardId, setCurrentCardId] = useState<string | number | null>(null)
+
+  // Credit Card form state
+  const [cardFormData, setCardFormData] = useState({
+    cardName: "",
+    cardNumber: "",
+    expiryDate: "",
+    cvv: "",
+    cardholderName: "",
+    cardType: "Visa" as "Visa" | "Mastercard" | "American Express" | "Discover",
+    color: "blue" as "cyan" | "green" | "blue" | "purple" | "gold" | "black",
+  })
 
   // Form state
   const [formData, setFormData] = useState({
@@ -369,21 +380,30 @@ export default function Dashboard({ onLogout }: DashboardProps) {
 
   // Component-level error suppression
   useEffect(() => {
-    const handleError = (event: ErrorEvent) => {
-      if (
-        event.message.includes("ResizeObserver loop completed") ||
-        event.message.includes("ResizeObserver loop limit exceeded")
-      ) {
+    const errorHandler = (event: ErrorEvent) => {
+      const message = event.message || event.error?.message || ""
+      if (message.toLowerCase().includes("resizeobserver")) {
+        event.stopImmediatePropagation()
         event.preventDefault()
-        event.stopPropagation()
         return false
       }
     }
 
-    window.addEventListener("error", handleError, true)
+    const rejectionHandler = (event: PromiseRejectionEvent) => {
+      const message = event.reason?.message || String(event.reason) || ""
+      if (message.toLowerCase().includes("resizeobserver")) {
+        event.stopImmediatePropagation()
+        event.preventDefault()
+        return false
+      }
+    }
+
+    window.addEventListener("error", errorHandler, true)
+    window.addEventListener("unhandledrejection", rejectionHandler, true)
 
     return () => {
-      window.removeEventListener("error", handleError, true)
+      window.removeEventListener("error", errorHandler, true)
+      window.removeEventListener("unhandledrejection", rejectionHandler, true)
     }
   }, [])
 
@@ -399,10 +419,14 @@ export default function Dashboard({ onLogout }: DashboardProps) {
   // Update time and uptime
   useEffect(() => {
     const updateTimeAndUptime = () => {
-      setCurrentTime(new Date())
-      const now = Date.now()
-      const uptimeMs = now - uptimeStart
-      setUptime(formatUptime(uptimeMs))
+      try {
+        setCurrentTime(new Date())
+        const now = Date.now()
+        const uptimeMs = now - uptimeStart
+        setUptime(formatUptime(uptimeMs))
+      } catch (error) {
+        // Silently handle any errors
+      }
     }
 
     // İlk güncelleme
@@ -636,8 +660,30 @@ export default function Dashboard({ onLogout }: DashboardProps) {
     setShowCreditCardDetails(false)
   }
 
+  const handleEditCard = (cardId: string | number) => {
+    setCurrentCardId(cardId)
+    setCurrentView("editCard")
+    setSelectedBank(null)
+    setSelectedCreditCard(null)
+    setShowBankDetails(false)
+    setShowCreditCardDetails(false)
+
+    // Load card data
+    const cardToEdit = creditCards.find((card) => card.id.toString() === cardId.toString())
+    if (cardToEdit) {
+      setCardFormData({
+        cardName: cardToEdit.cardName,
+        cardNumber: cardToEdit.cardNumber,
+        expiryDate: cardToEdit.expiryDate,
+        cvv: cardToEdit.cvv,
+        cardholderName: cardToEdit.cardholderName,
+        cardType: cardToEdit.cardType,
+        color: cardToEdit.color,
+      })
+    }
+  }
+
   const handleBankClick = (bank: Bank) => {
-    console.log("Bank clicked:", bank.name) // Debug için
     setSelectedBank(bank)
     setSelectedCreditCard(null)
     setShowBankDetails(true)
@@ -648,7 +694,6 @@ export default function Dashboard({ onLogout }: DashboardProps) {
   }
 
   const handleCreditCardClick = (card: CreditCardType) => {
-    console.log("Credit card clicked:", card.cardName)
     setSelectedCreditCard(card)
     setSelectedBank(null)
     setShowCreditCardDetails(true)
@@ -656,9 +701,13 @@ export default function Dashboard({ onLogout }: DashboardProps) {
   }
 
   const handleCopyToClipboard = (text: string, field: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopiedField(field)
-    })
+    try {
+      navigator.clipboard.writeText(text).then(() => {
+        setCopiedField(field)
+      })
+    } catch (error) {
+      // Silently handle clipboard errors
+    }
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -678,6 +727,23 @@ export default function Dashboard({ onLogout }: DashboardProps) {
       }))
     } else {
       setFormData((prev) => ({
+        ...prev,
+        [id]: value,
+      }))
+    }
+  }
+
+  const handleCardInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { id, value } = e.target
+
+    if (id === "expiryDate") {
+      const formattedValue = formatExpiryDate(value)
+      setCardFormData((prev) => ({
+        ...prev,
+        [id]: formattedValue,
+      }))
+    } else {
+      setCardFormData((prev) => ({
         ...prev,
         [id]: value,
       }))
@@ -767,6 +833,52 @@ export default function Dashboard({ onLogout }: DashboardProps) {
     setCurrentBankId(null)
   }
 
+  const handleCardSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+
+    // Validate expiry date
+    if (!validateExpiryDate(cardFormData.expiryDate)) {
+      alert("Please enter a valid expiry date in MM/YY format (e.g., 08/28)")
+      return
+    }
+
+    // Update existing card
+    const updatedCards = creditCards.map((card) =>
+      card.id.toString() === currentCardId?.toString()
+        ? {
+            ...card,
+            cardName: cardFormData.cardName,
+            cardNumber: cardFormData.cardNumber,
+            expiryDate: cardFormData.expiryDate,
+            cvv: cardFormData.cvv,
+            cardholderName: cardFormData.cardholderName,
+            cardType: cardFormData.cardType,
+            color: cardFormData.color,
+          }
+        : card,
+    )
+
+    // Save to localStorage
+    saveCreditCardsToStorage(updatedCards)
+
+    // Update state
+    setCreditCards(updatedCards)
+
+    // Reset form and go back to credit cards view
+    setCardFormData({
+      cardName: "",
+      cardNumber: "",
+      expiryDate: "",
+      cvv: "",
+      cardholderName: "",
+      cardType: "Visa",
+      color: "blue",
+    })
+
+    setCurrentView("creditCards")
+    setCurrentCardId(null)
+  }
+
   const handleDeleteBank = (bankId: string | number) => {
     const updatedBanks = banks.filter((bank) => bank.id.toString() !== bankId.toString())
 
@@ -822,7 +934,7 @@ export default function Dashboard({ onLogout }: DashboardProps) {
 
   return (
     <div
-      className={`${theme} min-h-screen bg-gradient-to-br from-black via-slate-900 to-slate-800 text-slate-100 relative overflow-hidden`}
+      className={`${theme} bg-gradient-to-br from-black via-slate-900 to-slate-800 text-slate-100 relative overflow-hidden`}
     >
       {/* Animated background with CSS */}
       <div className="absolute inset-0 overflow-hidden">
@@ -884,7 +996,7 @@ export default function Dashboard({ onLogout }: DashboardProps) {
         </header>
 
         {/* Main content */}
-        <div className="grid grid-cols-12 gap-6">
+        <div className="grid grid-cols-12 gap-6 min-h-[calc(100vh-120px)]">
           {/* Sidebar */}
           <div className="col-span-12 md:col-span-3 lg:col-span-2">
             <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm h-full">
@@ -1036,7 +1148,7 @@ export default function Dashboard({ onLogout }: DashboardProps) {
                 </Card>
               ) : currentView === "settings" ? (
                 /* Settings - Bank Management */
-                <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm overflow-hidden">
+                <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm overflow-hidden min-h-[500px]">
                   <CardHeader className="border-b border-slate-700/50 pb-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-slate-100 flex items-center">
@@ -1055,11 +1167,9 @@ export default function Dashboard({ onLogout }: DashboardProps) {
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="p-6">
+                  <CardContent className="p-6 min-h-[400px]">
                     <div className="mb-4">
-                      <p className="text-slate-400 text-sm">
-                        Manage your banks. You can edit all banks, but only delete original banks.
-                      </p>
+                      <p className="text-slate-400 text-sm">Manage your banks. You can edit and delete all banks.</p>
                     </div>
                     {filteredBanks.length > 0 ? (
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1105,9 +1215,185 @@ export default function Dashboard({ onLogout }: DashboardProps) {
                     )}
                   </CardContent>
                 </Card>
+              ) : currentView === "editCard" ? (
+                /* Edit Credit Card Form */
+                <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm overflow-hidden min-h-[500px]">
+                  <CardHeader className="border-b border-slate-700/50 pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-slate-100 flex items-center">
+                        <Edit2 className="mr-2 h-5 w-5 text-cyan-500" />
+                        Edit Credit Card
+                      </CardTitle>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-slate-400 hover:text-slate-100"
+                          onClick={() => setCurrentView("creditCards")}
+                        >
+                          <ArrowLeft className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    <form onSubmit={handleCardSubmit} className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Card Name */}
+                        <div className="space-y-2">
+                          <Label htmlFor="cardName" className="text-sm font-medium text-slate-300">
+                            Card Name
+                          </Label>
+                          <Input
+                            id="cardName"
+                            type="text"
+                            placeholder="Enter card name"
+                            className="bg-slate-800/50 border-slate-700/50 text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500"
+                            value={cardFormData.cardName}
+                            onChange={handleCardInputChange}
+                            required
+                          />
+                        </div>
+
+                        {/* Card Number */}
+                        <div className="space-y-2">
+                          <Label htmlFor="cardNumber" className="text-sm font-medium text-slate-300">
+                            Card Number
+                          </Label>
+                          <Input
+                            id="cardNumber"
+                            type="text"
+                            placeholder="0000 0000 0000 0000"
+                            className="bg-slate-800/50 border-slate-700/50 text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500"
+                            value={cardFormData.cardNumber}
+                            onChange={handleCardInputChange}
+                            required
+                          />
+                        </div>
+
+                        {/* Cardholder Name */}
+                        <div className="space-y-2">
+                          <Label htmlFor="cardholderName" className="text-sm font-medium text-slate-300">
+                            Cardholder Name
+                          </Label>
+                          <Input
+                            id="cardholderName"
+                            type="text"
+                            placeholder="CARD HOLDER"
+                            className="bg-slate-800/50 border-slate-700/50 text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500"
+                            value={cardFormData.cardholderName}
+                            onChange={handleCardInputChange}
+                            required
+                          />
+                        </div>
+
+                        {/* Card Type */}
+                        <div className="space-y-2">
+                          <Label htmlFor="cardType" className="text-sm font-medium text-slate-300">
+                            Card Type
+                          </Label>
+                          <select
+                            id="cardType"
+                            className="w-full bg-slate-800/50 border-slate-700/50 text-slate-100 rounded-md px-3 py-2 focus:border-cyan-500 focus:ring-cyan-500"
+                            value={cardFormData.cardType}
+                            onChange={handleCardInputChange}
+                            required
+                          >
+                            <option value="Visa">Visa</option>
+                            <option value="Mastercard">Mastercard</option>
+                            <option value="American Express">American Express</option>
+                            <option value="Discover">Discover</option>
+                          </select>
+                        </div>
+
+                        {/* Expiry Date */}
+                        <div className="space-y-2">
+                          <Label htmlFor="expiryDate" className="text-sm font-medium text-slate-300">
+                            Expiry Date (MM/YY)
+                          </Label>
+                          <Input
+                            id="expiryDate"
+                            type="text"
+                            placeholder="MM/YY"
+                            className={`bg-slate-800/50 border-slate-700/50 text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500 ${
+                              cardFormData.expiryDate && !validateExpiryDate(cardFormData.expiryDate)
+                                ? "border-red-500"
+                                : ""
+                            }`}
+                            value={cardFormData.expiryDate}
+                            onChange={handleCardInputChange}
+                            required
+                          />
+                          {cardFormData.expiryDate && !validateExpiryDate(cardFormData.expiryDate) && (
+                            <p className="text-red-500 text-xs mt-1">
+                              Please enter a valid expiry date in MM/YY format (e.g., 08/28)
+                            </p>
+                          )}
+                        </div>
+
+                        {/* CVV */}
+                        <div className="space-y-2">
+                          <Label htmlFor="cvv" className="text-sm font-medium text-slate-300">
+                            CVV
+                          </Label>
+                          <Input
+                            id="cvv"
+                            type="text"
+                            placeholder="000"
+                            maxLength={3}
+                            className="bg-slate-800/50 border-slate-700/50 text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500"
+                            value={cardFormData.cvv}
+                            onChange={handleCardInputChange}
+                            required
+                          />
+                        </div>
+
+                        {/* Card Color */}
+                        <div className="space-y-2">
+                          <Label htmlFor="color" className="text-sm font-medium text-slate-300">
+                            Card Color
+                          </Label>
+                          <select
+                            id="color"
+                            className="w-full bg-slate-800/50 border-slate-700/50 text-slate-100 rounded-md px-3 py-2 focus:border-cyan-500 focus:ring-cyan-500"
+                            value={cardFormData.color}
+                            onChange={handleCardInputChange}
+                            required
+                          >
+                            <option value="blue">Blue</option>
+                            <option value="cyan">Cyan</option>
+                            <option value="green">Green</option>
+                            <option value="purple">Purple</option>
+                            <option value="gold">Gold</option>
+                            <option value="black">Black</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Submit Buttons */}
+                      <div className="flex items-center justify-end space-x-4 pt-6 border-t border-slate-700/50">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setCurrentView("creditCards")}
+                          className="border-slate-700 bg-slate-800/50 hover:bg-slate-700/50 text-slate-300 hover:text-slate-100"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="submit"
+                          className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white border-0"
+                        >
+                          <Save className="mr-2 h-4 w-4" />
+                          Save Changes
+                        </Button>
+                      </div>
+                    </form>
+                  </CardContent>
+                </Card>
               ) : (
                 /* New Bank or Edit Bank Form */
-                <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm overflow-hidden">
+                <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm overflow-hidden min-h-[500px]">
                   <CardHeader className="border-b border-slate-700/50 pb-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-slate-100 flex items-center">
@@ -1725,10 +2011,7 @@ export default function Dashboard({ onLogout }: DashboardProps) {
                         <Button
                           variant="outline"
                           className="w-full border-slate-700 bg-slate-800/50 hover:bg-slate-700/50 text-slate-300 hover:text-slate-100"
-                          onClick={() => {
-                            console.log("Edit credit card:", selectedCreditCard.id)
-                            alert(`Edit functionality for ${selectedCreditCard.cardName} is coming soon!`)
-                          }}
+                          onClick={() => handleEditCard(selectedCreditCard.id)}
                         >
                           <Edit2 className="mr-2 h-4 w-4" />
                           Edit Card
@@ -1861,7 +2144,6 @@ function BankCard({
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    console.log("BankCard clicked:", bank.name) // Debug için
     if (onClick) {
       onClick()
     }
